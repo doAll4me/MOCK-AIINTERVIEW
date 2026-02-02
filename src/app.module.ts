@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
+import { InterviewController } from './interview/interview.controller';
 
 // Module装饰器，用来定义模块
 @Module({
@@ -26,7 +27,7 @@ import { UserModule } from './user/user.module';
     UserModule,
   ],
   // 注册控制器。控制器负责处理HTTP请求。
-  controllers: [AppController],
+  controllers: [AppController, InterviewController],
   // 注册提供者。提供者通常是服务类，包含业务逻辑。
   providers: [AppService],
 })
