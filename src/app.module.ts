@@ -4,8 +4,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserModule } from './user/user.module';
+import { EmailService } from './email/email.service';
 import { InterviewController } from './interview/interview.controller';
+import { InterviewModule } from './interview/interview.module';
+import { LoggerService } from './logger/logger.service';
+import { ShareModule } from './share/share.module';
+import { UserModule } from './user/user.module';
 
 // Module装饰器，用来定义模块
 @Module({
@@ -25,10 +29,12 @@ import { InterviewController } from './interview/interview.controller';
       inject: [ConfigService],
     }),
     UserModule,
+    InterviewModule,
+    ShareModule,
   ],
   // 注册控制器。控制器负责处理HTTP请求。
   controllers: [AppController, InterviewController],
   // 注册提供者。提供者通常是服务类，包含业务逻辑。
-  providers: [AppService],
+  providers: [AppService, LoggerService, EmailService],
 })
 export class AppModule {}
