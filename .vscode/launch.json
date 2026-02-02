@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node", //表示这是Node.js调试配置
+      "request": "launch", //表示启动一个新的进程进行调试
+      "name": "Debug NestJS", //调试配置的名称，会在调试器中选择时显示
+      "runtimeExecutable": "pnpm", //使用pnpm来运行命令
+      "runtimeArgs": ["run", "start:debug"], //运行pnpm run start:debug命令
+      "console": "integratedTerminal", //在 VS Code 的集成终端中显示输出
+      "restart": true, //支持自动重启
+      // "protocol": "inspector", //使用 Node.js 的 Inspector 协议
+      "sourceMaps": true, //启用源映射，这样可以在TypeScript源代码中设置断点
+      //设置环境变量
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}
