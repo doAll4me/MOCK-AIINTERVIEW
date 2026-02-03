@@ -10,9 +10,21 @@ dotenv.config();
 async function bootstrap() {
   // 使用NestFactory.create()创建NestJS应用实例，传入AppModule 作为根模块。
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    // 全局ValidationPipe
+    new ValidationPipe({
+      whitelist: true, //自动移除DTO中没有声明的字段
+      forbidNonWhitelisted: true, //出现未声明的字段就报错
+      transform: true, //自动类型转换
+      transformOptions: {
+        enableImplicitConversion: true, //启用隐式转换
+      },
+    }),
+  );
+
   //启动服务器，监听3000端口。我们的应用会在3000端口上运行
   await app.listen(process.env.PORT ?? 3000);
-  app.useGlobalPipes(new ValidationPipe());
 }
 
 // 调用bootstrap()函数，启动应用。

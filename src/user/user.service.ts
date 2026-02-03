@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 export interface User {
   id: number;
@@ -29,6 +29,14 @@ export class UserService {
       createdAt: new Date('2024-01-03'),
     },
   ];
+
+  // 在userservice中使用数据库配置
+  constructor(
+    @Inject('DATABASE_CONNECTION')
+    private readonly dbConfig: any,
+  ) {
+    console.log('数据库配置', this.dbConfig);
+  }
 
   // 查找所有用户
   findAll(): User[] {
