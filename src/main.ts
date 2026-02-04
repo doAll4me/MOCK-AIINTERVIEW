@@ -3,6 +3,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core'; //NestFactory 是用来创建NestS应用实例的工厂类。
 import * as dotenv from 'dotenv';
 import { AppModule } from './app.module'; //应用的根模块
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+// import './test-observable';
 
 dotenv.config();
 
@@ -22,6 +24,8 @@ async function bootstrap() {
       },
     }),
   );
+
+  app.useGlobalFilters(new AllExceptionsFilter()); //异常过滤器
 
   //启动服务器，监听3000端口。我们的应用会在3000端口上运行
   await app.listen(process.env.PORT ?? 3000);

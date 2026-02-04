@@ -1,14 +1,19 @@
 // 整个后端应用的“入口模块”，应用的根模块，所有其他模块都需要在这里导入
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+// import { JwtStrategy } from './auth/jwt.strategy';
+import { CommonModule } from './common/common.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { CacheInterceptor } from './common/interceptors/cache.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { configValidationSchema } from './config/config.schema';
 import { DatabaseModule } from './database/database.module';
 import { EmailService } from './email/email.service';
 import { InterviewController } from './interview/interview.controller';
@@ -21,7 +26,15 @@ import { UserModule } from './user/user.module';
   imports: [
     // 全局配置
     ConfigModule.forRoot({
-      isGlobal: true, //全局模块
+      //决定加载哪个 .env 文件(NestJS 不会自动根据文件名判断环境,它只认你传给 envFilePath 的路径)
+      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+      isGlobal: true, //是否注册为全局模块
+      validationSchema: configValidationSchema, //环境变量的「入库校验」
+      //校验行为的细节控制
+      validationOptions: {
+        allowUnknown: true, //是否允许 .env 里存在 schema 没定义的变量
+        abortEarly: true, //遇到第一个校验错误就停止
+      },
     }),
     // 配置MongoDB连接，MongooseModule.forRootAsync（异步数据库连接）
     MongooseModule.forRootAsync({
@@ -38,6 +51,11 @@ import { UserModule } from './user/user.module';
     UserModule,
     InterviewModule,
     DatabaseModule,
+    JwtModule.register({
+      secret: 'eeKey', //从环境变量中读取
+      signOptions: { expiresIn: '24h' },
+    }),
+    CommonModule, //事件服务模块
   ],
   // 接口入口，注册控制器。控制器负责处理HTTP请求。
   controllers: [AppController, InterviewController],
@@ -60,6 +78,12 @@ import { UserModule } from './user/user.module';
       //全局缓存拦截器
       provide: APP_INTERCEPTOR,
       useClass: CacheInterceptor,
+    },
+    // JwtStrategy, //全局路由守卫
+    {
+      // 全局异常过滤器
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
     },
   ],
 })

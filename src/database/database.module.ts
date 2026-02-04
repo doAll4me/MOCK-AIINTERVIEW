@@ -1,8 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { DatabaseService } from './database.service';
 
 @Module({
+  imports: [
+    //确保能注入configService(在 AppModule里已经把ConfigModule设为global，这里写不写imports都可以，但写上更清晰)
+    ConfigModule,
+  ],
   providers: [
+    DatabaseService,
     {
       // 注册一个 自定义 Provider
       provide: 'DATABASE_CONNECTION',
@@ -25,12 +31,11 @@ import { ConfigService } from '@nestjs/config';
             database: configService.get<string>('POSTGRES_DB'),
           };
         }
-
         throw new Error(`不支持数据库类型：${dbType}`);
       },
       inject: [ConfigService], //这个工厂函数需要的依赖
     },
   ],
-  exports: ['DATABASE_CONNECTION'], //把这个 provider 导出去给别的模块用
+  exports: ['DATABASE_CONNECTION', DatabaseService], //把这个 provider 导出去给别的模块用
 })
 export class DatabaseModule {}

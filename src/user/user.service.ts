@@ -1,4 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 export interface User {
   id: number;
@@ -30,12 +31,19 @@ export class UserService {
     },
   ];
 
-  // 在userservice中使用数据库配置
   constructor(
-    @Inject('DATABASE_CONNECTION')
-    private readonly dbConfig: any,
+    //在userservice中使用数据库配置
+    // @Inject('DATABASE_CONNECTION')
+    // private readonly dbConfig: any,
+    //在userservice中使用全局配置
+    private configService: ConfigService,
   ) {
-    console.log('数据库配置', this.dbConfig);
+    // console.log('数据库配置', this.dbConfig);
+  }
+
+  someMethod() {
+    // const dbUri = this.configService.get<string>('MONGODB_URI');
+    // const port = this.configService.get<number>('PORT', 3000); //提供默认值
   }
 
   // 查找所有用户
@@ -79,6 +87,7 @@ export class UserService {
     return user;
   }
 
+  // 删除用户信息
   remove(id: number): void {
     const index = this.users.findIndex((user) => user.id === id);
     // index=-1时代表未找到匹配的user
