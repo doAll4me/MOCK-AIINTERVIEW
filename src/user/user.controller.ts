@@ -17,10 +17,10 @@ import {
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { Roles, RolesGuard } from 'src/roles/roles.guard';
-import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 // import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 // import type { User } from './user.service';
-import { User } from './schemas/user.schema';
+import { User } from './user.schema';
 import { UserService } from './user.service';
 
 // 控制器只负责处理HTTP请求，业务逻辑都在服务中
@@ -74,7 +74,7 @@ export class UserController {
   @Post()
   // @HttpCode(HttpStatus.CREATED) //为了返回符合 HTTP 规范的状态码 201 Created
   // 添加dto数据验证
-  create(@Body() createUserDto: CreateUserDto): Promise<User> {
+  create(@Body() createUserDto: UpdateUserDto): Promise<User> {
     return this.userService.create(createUserDto);
   }
 

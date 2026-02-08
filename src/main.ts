@@ -10,11 +10,12 @@ dotenv.config();
 
 // 启动应用的函数
 async function bootstrap() {
+  // NestFactory :NestJS提供的工厂，用来创建应用实例
   // 使用NestFactory.create()创建NestJS应用实例，传入AppModule 作为根模块。
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(
-    // 全局ValidationPipe
+    // 全局ValidationPipe验证管道
     new ValidationPipe({
       whitelist: true, //自动移除DTO中没有声明的字段
       forbidNonWhitelisted: true, //出现未声明的字段就报错
@@ -24,6 +25,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // 启用CORS跨域
+  app.enableCors();
 
   app.useGlobalFilters(new AllExceptionsFilter()); //异常过滤器
 

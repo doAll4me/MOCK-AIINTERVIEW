@@ -1,8 +1,9 @@
+// 模块配置
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DatabaseModule } from 'src/database/database.module';
-import { User, UserSchema } from './schemas/user.schema';
 import { UserController } from './user.controller';
+import { User, UserSchema } from './user.schema';
 import { UserService } from './user.service';
 
 @Module({

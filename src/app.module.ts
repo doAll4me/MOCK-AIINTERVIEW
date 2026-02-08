@@ -7,18 +7,19 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 // import { JwtStrategy } from './auth/jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './auth/jwt.strategy';
 import { CommonModule } from './common/common.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { CacheInterceptor } from './common/interceptors/cache.interceptor';
-import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { configValidationSchema } from './config/config.schema';
-import { DatabaseModule } from './database/database.module';
-import { EmailService } from './email/email.service';
 import { InterviewController } from './interview/interview.controller';
 import { InterviewModule } from './interview/interview.module';
+import { PaymentModule } from './payment/Payment.module';
+import { StsModule } from './sts/sts.module';
 import { UserModule } from './user/user.module';
+import { WechatModule } from './wechat/wechat.module';
 
 // Module装饰器，用来定义模块
 @Module({
@@ -47,14 +48,35 @@ import { UserModule } from './user/user.module';
       }),
       inject: [ConfigService],
     }),
+    PassportModule, //认证框架
     // 业务模块导入
-    UserModule,
-    InterviewModule,
-    DatabaseModule,
-    JwtModule.register({
-      secret: 'eeKey', //从环境变量中读取
-      signOptions: { expiresIn: '24h' },
+    // JSON Web Token:用户登录和权限控制
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const expirationSeconds = getTokenExpirationSeconds();
+        return {
+          secret:
+            configService.get<string>('JWT_SECRET') || 'AI-interview-secret',
+          signOptions: {
+            expiresIn: expirationSeconds,
+          },
+        };
+      },
+      // secret: 'eeKey', //从环境变量中读取
+      // signOptions: { expiresIn: '24h' },
+      inject: [ConfigService],
+      global: true,
     }),
+
+    // 功能模块
+    UserModule,
+    WechatModule,
+    PaymentModule,
+    StsModule,
+    InterviewModule,
+    // DatabaseModule,
+
     CommonModule, //事件服务模块
   ],
   // 接口入口，注册控制器。控制器负责处理HTTP请求。
@@ -62,29 +84,29 @@ import { UserModule } from './user/user.module';
   // 提供者（服务 & 中间件）。提供者通常是服务类，包含业务逻辑。
   providers: [
     AppService,
-    LoggerMiddleware,
-    EmailService,
+    JwtStrategy, //全局路由守卫
+    // LoggerMiddleware,
+    // EmailService,
     {
       //全局响应包装拦截器
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
     },
     {
-      //全局日志拦截器
-      provide: APP_INTERCEPTOR,
-      useClass: LoggingInterceptor,
-    },
-    {
-      //全局缓存拦截器
-      provide: APP_INTERCEPTOR,
-      useClass: CacheInterceptor,
-    },
-    // JwtStrategy, //全局路由守卫
-    {
       // 全局异常过滤器
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
     },
+    // {
+    //   //全局日志拦截器
+    //   provide: APP_INTERCEPTOR,
+    //   useClass: LoggingInterceptor,
+    // },
+    // {
+    //   //全局缓存拦截器
+    //   provide: APP_INTERCEPTOR,
+    //   useClass: CacheInterceptor,
+    // },
   ],
 })
 

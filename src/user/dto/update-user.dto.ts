@@ -8,7 +8,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class CreateUserDto {
+export class UpdateUserDto {
   @Transform(({ value }) => (value as string).trim()) //去除空格
   @IsString({ message: '用户名必须是字符串' })
   @IsNotEmpty({ message: '用户名不能为空' })

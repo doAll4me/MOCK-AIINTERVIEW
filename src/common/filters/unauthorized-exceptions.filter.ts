@@ -22,7 +22,7 @@ type HttpExceptionResponse =
  *@Catch(HttpException,ValidationException) 捕获多种异常
  */
 @Catch(BadRequestException)
-export class ValidationExceptionFilter implements ExceptionFilter {
+export class UnauthorizedExceptionFilter implements ExceptionFilter {
   catch(exception: BadRequestException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();

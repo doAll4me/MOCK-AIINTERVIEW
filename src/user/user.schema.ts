@@ -1,3 +1,4 @@
+// 定义数据结构
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Document, HydratedDocument } from 'mongoose';
