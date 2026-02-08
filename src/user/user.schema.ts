@@ -71,6 +71,9 @@ export class User extends Document {
   @Prop({ required: true, minlength: 6 })
   password: string;
 
+  @Prop({ default: ' ' })
+  avatar: string;
+
   @Prop({ type: ProfileSchema })
   profile: Profile;
 

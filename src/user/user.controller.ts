@@ -20,17 +20,28 @@ import { Roles, RolesGuard } from 'src/roles/roles.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 // import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 // import type { User } from './user.service';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from './user.schema';
 import { UserService } from './user.service';
 
 // 控制器只负责处理HTTP请求，业务逻辑都在服务中
 @Controller('user') // 表示这是一个控制器，路由前缀是/users
 // @UseGuards(JwtAuthGuard) //使用守卫(所有路由都需要认证)
+@ApiTags('用户') //给接口写文档
 export class UserController {
   // 依赖注入:在构造函数中注入UserService
   constructor(private readonly userService: UserService) {}
 
   @Get() //表示处理GET请求，路由是/users。调用userService.findAl1()返回所有用户
+  @ApiResponse({
+    status: 200,
+    description: '成功获取用户信息',
+    type: User,
+  })
+  @ApiResponse({
+    status: 401,
+    description: '未授权，需要登录',
+  })
   findAll(): Promise<User[]> {
     return this.userService.findAll();
     // 模拟observable使用

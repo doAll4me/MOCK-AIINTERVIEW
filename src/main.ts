@@ -1,6 +1,7 @@
 // 应用入口
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core'; //NestFactory 是用来创建NestS应用实例的工厂类。
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as dotenv from 'dotenv';
 import { AppModule } from './app.module'; //应用的根模块
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -13,6 +14,16 @@ async function bootstrap() {
   // NestFactory :NestJS提供的工厂，用来创建应用实例
   // 使用NestFactory.create()创建NestJS应用实例，传入AppModule 作为根模块。
   const app = await NestFactory.create(AppModule);
+
+  // 配置Swagger，自动生成API文档
+  const config = new DocumentBuilder()
+    .setTitle('AI面试系统API') //文档标题
+    .setDescription('AI面试系统的API文档')
+    .setVersion('1.0.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
   app.useGlobalPipes(
     // 全局ValidationPipe验证管道

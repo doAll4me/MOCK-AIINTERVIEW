@@ -2,7 +2,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
+// import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -51,23 +51,24 @@ import { WechatModule } from './wechat/wechat.module';
     PassportModule, //认证框架
     // 业务模块导入
     // JSON Web Token:用户登录和权限控制
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        const expirationSeconds = getTokenExpirationSeconds();
-        return {
-          secret:
-            configService.get<string>('JWT_SECRET') || 'AI-interview-secret',
-          signOptions: {
-            expiresIn: expirationSeconds,
-          },
-        };
-      },
-      // secret: 'eeKey', //从环境变量中读取
-      // signOptions: { expiresIn: '24h' },
-      inject: [ConfigService],
-      global: true,
-    }),
+    // JwtModule.registerAsync({
+    //   imports: [ConfigModule],
+    //   useFactory: (configService: ConfigService): JwtModuleOptions => {
+    //     const expirationSeconds = getTokenExpirationSeconds();
+
+    //     return {
+    //       secret:
+    //         configService.get<string>('JWT_SECRET') ?? 'AI-interview-secret',
+    //       signOptions: {
+    //         expiresIn: expirationSeconds,
+    //       },
+    //     };
+    //   },
+    //   // secret: 'eeKey', //从环境变量中读取
+    //   // signOptions: { expiresIn: '24h' },
+    //   inject: [ConfigService],
+    //   global: true,
+    // }),
 
     // 功能模块
     UserModule,

@@ -1,6 +1,7 @@
+// 面试业务服务
 import { Injectable } from '@nestjs/common';
 // import { NotFoundException } from '@nestjs/common';
-import { UserService } from '../user/user.service';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class InterviewService {
