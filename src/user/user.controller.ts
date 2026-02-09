@@ -12,6 +12,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -20,17 +21,93 @@ import { Roles, RolesGuard } from 'src/roles/roles.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 // import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 // import type { User } from './user.service';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import type { AuthedRequest } from 'src/auth/interface/authed-request.interface';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtUserPayload } from 'src/auth/jwt-payload.interface';
+import { Public } from 'src/auth/public.decorator';
+import { ResponseUtil } from 'src/common/dto/response.dto';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { User } from './user.schema';
 import { UserService } from './user.service';
 
 // 控制器只负责处理HTTP请求，业务逻辑都在服务中
 @Controller('user') // 表示这是一个控制器，路由前缀是/users
-// @UseGuards(JwtAuthGuard) //使用守卫(所有路由都需要认证)
+@UseGuards(JwtAuthGuard) //使用守卫(所有路由都需要认证)
 @ApiTags('用户') //给接口写文档
 export class UserController {
   // 依赖注入:在构造函数中注入UserService
   constructor(private readonly userService: UserService) {}
+
+  // 注册接口
+  @Public() //不需要token认证的接口
+  @Post('register')
+  async register(@Body() registerDto: RegisterDto) {
+    const result = await this.userService.register(registerDto);
+    return ResponseUtil.success(result, '注册成功');
+  }
+
+  // 登录接口
+  @Public() //不需要token认证的接口
+  @Post('login')
+  async login(@Body() loginDto: LoginDto) {
+    const result = await this.userService.login(loginDto);
+    return ResponseUtil.success(result, '登录成功');
+  }
+
+  // 获取用户信息
+  @ApiBearerAuth()
+  @Get('info')
+  // @UseGuards(JwtAuthGuard) //使用认证守卫(放在controller上统一保护了)
+  async getUserInfo(@Request() req: Request & { user: JwtUserPayload }) {
+    // req.user就是从token里提取出来的用户信息
+    // console.log(req.user);
+    const { userId } = req.user;
+    return await this.userService.getUserInfo(userId);
+  }
+
+  // 获取用户消费记录
+  @Get('consumption-records')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '获取用户消费记录',
+    description:
+      '获取用户所有的功能消费记录，包括简历押题、专项面试、综合面试等',
+  })
+  async getUserConsumptionRecords(
+    @Request() req: AuthedRequest,
+    @Query('skip') skip: number = 0,
+    @Query('limit') limit: number = 20,
+  ) {
+    const { userId } = req.user;
+    const result = await this.userService.getUserConsumptionRecords(userId, {
+      skip,
+      limit,
+    });
+    return ResponseUtil.success(result, '获取成功');
+  }
+
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateUserProfile(
+    @Request() req: AuthedRequest,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    // const user = this.userService.update(id, updateUserDto);
+    // if (!user) {
+    //   throw new NotFoundException(`用户ID${id}不存在`);
+    // }
+    // return user;
+    const { userId } = req.user;
+    const user = await this.userService.updateUser(userId, updateUserDto);
+    return ResponseUtil.success(user, '更新成功');
+  }
 
   @Get() //表示处理GET请求，路由是/users。调用userService.findAl1()返回所有用户
   @ApiResponse({
@@ -89,19 +166,6 @@ export class UserController {
     return this.userService.create(createUserDto);
   }
 
-  @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: { name?: string; email?: string },
-  ): Promise<User | null> {
-    // const user = this.userService.update(id, updateUserDto);
-    // if (!user) {
-    //   throw new NotFoundException(`用户ID${id}不存在`);
-    // }
-    // return user;
-    return this.userService.update(id.toString(), updateUserDto);
-  }
-
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseIntPipe) id: number): Promise<User | null> {
@@ -127,12 +191,6 @@ export class UserController {
   @Roles('admin', 'moderator')
   getStats() {
     // 只有admin或moderator角色可以访问
-  }
-
-  @Get('info')
-  getInfo(@Request() req: ExpressRequest) {
-    // req.user包含从JWT中解析的用户信息
-    return req.user ?? null;
   }
 
   @Get('admin')

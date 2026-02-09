@@ -2,6 +2,7 @@ import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -17,11 +18,37 @@ export class UpdateUserDto {
   @Matches(/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/, {
     message: '用户名只能包含字母、数字、下划线和中文',
   })
-  username: string;
+  nickname?: string;
+
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 
   @IsEmail({}, { message: '邮箱格式不正确' })
   @IsNotEmpty({ message: '邮箱不能为空' })
-  email: string;
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  // @IsString({ message: '密码必须是字符串' })
+  // @IsNotEmpty({ message: '密码不能为空' })
+  // @MinLength(6, { message: '密码至少6个字符' })
+  // @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+  //   message: '密码必须包含大小写字母和数字',
+  // })
+  // password: string;
+}
+
+export class ChangePasswordDto {
+  @IsString({ message: '密码必须是字符串' })
+  @IsNotEmpty({ message: '密码不能为空' })
+  @MinLength(6, { message: '密码至少6个字符' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+    message: '密码必须包含大小写字母和数字',
+  })
+  oldPassword: string;
 
   @IsString({ message: '密码必须是字符串' })
   @IsNotEmpty({ message: '密码不能为空' })
@@ -29,5 +56,5 @@ export class UpdateUserDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
     message: '密码必须包含大小写字母和数字',
   })
-  password: string;
+  newPassword: string;
 }

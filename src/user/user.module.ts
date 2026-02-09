@@ -1,6 +1,10 @@
 // 模块配置
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import {
+  ConsumptionRecord,
+  ConsumptionRecordSchema,
+} from 'src/interview/schemas/consumption-record.schema';
 import { UserController } from './user.controller';
 import { User, UserSchema } from './user.schema';
 import { UserService } from './user.service';
@@ -8,7 +12,10 @@ import { UserService } from './user.service';
 @Module({
   imports: [
     // 注册数据库Schema,让UserService可以使用User这个数据集合
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: ConsumptionRecord.name, schema: ConsumptionRecordSchema },
+    ]),
   ], //导入共享模块
   controllers: [UserController],
   providers: [UserService], //注册提供者（简写

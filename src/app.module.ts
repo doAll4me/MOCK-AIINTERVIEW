@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 // import { JwtStrategy } from './auth/jwt.strategy';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { CommonModule } from './common/common.module';
@@ -51,24 +52,23 @@ import { WechatModule } from './wechat/wechat.module';
     PassportModule, //认证框架
     // 业务模块导入
     // JSON Web Token:用户登录和权限控制
-    // JwtModule.registerAsync({
-    //   imports: [ConfigModule],
-    //   useFactory: (configService: ConfigService): JwtModuleOptions => {
-    //     const expirationSeconds = getTokenExpirationSeconds();
-
-    //     return {
-    //       secret:
-    //         configService.get<string>('JWT_SECRET') ?? 'AI-interview-secret',
-    //       signOptions: {
-    //         expiresIn: expirationSeconds,
-    //       },
-    //     };
-    //   },
-    //   // secret: 'eeKey', //从环境变量中读取
-    //   // signOptions: { expiresIn: '24h' },
-    //   inject: [ConfigService],
-    //   global: true,
-    // }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        // const expirationSeconds = getTokenExpirationSeconds();
+        return {
+          secret:
+            configService.get<string>('JWT_SECRET') ?? 'AI-interview-secret',
+          signOptions: {
+            expiresIn: configService.get<string>('JEW_EXPIRATION') || '7d', //token过期时间 7天
+          },
+        };
+      },
+      // secret: 'eeKey', //从环境变量中读取
+      // signOptions: { expiresIn: '24h' },
+      inject: [ConfigService],
+      global: true,
+    }),
 
     // 功能模块
     UserModule,
@@ -85,7 +85,7 @@ import { WechatModule } from './wechat/wechat.module';
   // 提供者（服务 & 中间件）。提供者通常是服务类，包含业务逻辑。
   providers: [
     AppService,
-    JwtStrategy, //全局路由守卫
+    JwtStrategy, //全局路由守卫(查token)
     // LoggerMiddleware,
     // EmailService,
     {
