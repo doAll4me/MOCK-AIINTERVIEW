@@ -20,6 +20,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@langchain/community": "1.1.13",
+    "@langchain/core": "1.1.20",
+    "@langchain/deepseek": "1.0.10",
+    "@langchain/openai": "1.2.6",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -33,6 +37,7 @@
     "class-validator": "^0.14.2",
     "dotenv": "^17.2.3",
     "joi": "^18.0.2",
+    "langchain": "1.2.19",
     "mongoose": "^9.1.5",
     "passport": "0.7.0",
     "passport-jwt": "4.0.1",

@@ -7,11 +7,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { InterviewService } from './services/interview.service';
 
 @Controller('interview')
 export class InterviewController {
   // 注入事件流来源
   // constructor(private readonly eventService: EventService) {}
+  constructor(private readonly interviewService: InterviewService) {}
   /**
    *  定义了一个 SSE（Server-Sent Events）流式接口，完整路径是：GET  /interview/stream
    * 让客户端通过一次 HTTP 请求，持续不断地从服务器接收消息流。
@@ -52,4 +54,19 @@ export class InterviewController {
   @Post('mock/end')
   @UseGuards(JwtAuthGuard)
   async endMockInterview(@Body() data, @Request() req) {}
+
+  @Post('/analyze-resume')
+  async analyzeResume(
+    @Body() body: { resume: string; jobDescription: string },
+  ) {
+    const result = await this.interviewService.analyzeResume(
+      body.resume,
+      body.jobDescription,
+    );
+
+    return {
+      code: 200,
+      data: result,
+    };
+  }
 }

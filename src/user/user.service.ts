@@ -9,7 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { ConsumptionRecordDocument } from '../interview/schemas/consumption-record.schema';
+import {
+  ConsumptionRecord,
+  ConsumptionRecordDocument,
+} from '../interview/schemas/consumption-record.schema';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto, UpdateUserDto } from './dto/update-user.dto';
@@ -53,6 +56,7 @@ export class UserService {
     // 用户Schema
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @InjectModel(ConsumptionRecord.name)
     private consumptionRecordModel: Model<ConsumptionRecordDocument>,
     private readonly jwtService: JwtService,
 

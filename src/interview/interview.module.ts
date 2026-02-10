@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AIModule } from 'src/ai/ai.module';
 import { UserModule } from 'src/user/user.module';
 import { InterviewController } from './interview.controller';
 import { DocumentParserService } from './services/document-parser.service';
@@ -21,6 +22,7 @@ import { InterviewService } from './services/interview.service';
       // ·UploadedResume -上传的简历文件
     ]),
     UserModule,
+    AIModule,
   ],
   controllers: [InterviewController],
   providers: [InterviewService, InterviewAIService, DocumentParserService],

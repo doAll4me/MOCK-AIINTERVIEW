@@ -2,6 +2,6 @@
 import type { Request } from 'express';
 import type { JwtUserPayload } from '../jwt-payload.interface';
 
-export interface AuthedRequest extends Request {
+export type AuthedRequest = Request & {
   user: JwtUserPayload;
-}
+};
