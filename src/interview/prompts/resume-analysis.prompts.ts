@@ -1,14 +1,13 @@
-// test
-export const RESUME_QUIZ_PROMPT = `
-你是一个资深的人力资源专家，有15年的招聘经验。
+// 专门处理prompt
+export const RESUME_ANALYSIS_SYSTEM_MESSAGE = (position: string): string => {
+  return `你是一个资深的${position}面试官，有15年的招聘经验。你能快速从简历中识别候选人的核心能力`;
+};
 
-你能快速从简历中识别候选人的核心能力。
-
-## 任务
-
-分析以下简历，提取关键信息，给出初步评估。
+export const RESUME_ANALYSIS_PROMPT = `
+你已经拥有一下信息，要求你进行分析：
 
 ## 简历内容
+
 {resume_content}
 
 ## 岗位要求
@@ -39,4 +38,12 @@ export const RESUME_QUIZ_PROMPT = `
   "gaps”:["缺陷1","缺陷2"],
   'summary":"1-2句总结"
 }}
+`;
+
+export const CONVERSATION_CONTINUATION_PROMPT = `基于以下对话历史，请回答最后一个问题。
+
+对话历史：
+{history}
+
+请给出清晰、有逻辑的回答
 `;

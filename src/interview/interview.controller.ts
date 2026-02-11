@@ -7,6 +7,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import type { AuthedRequest } from 'src/auth/jwt-payload.interface';
 import { InterviewService } from './services/interview.service';
 
 @Controller('interview')
@@ -55,18 +56,57 @@ export class InterviewController {
   @UseGuards(JwtAuthGuard)
   async endMockInterview(@Body() data, @Request() req) {}
 
+  // 简历分析test
+  // @Post('/analyze-resume')
+  // async analyzeResume(
+  //   @Body() body: { resume: string; jobDescription: string },
+  // ) {
+  //   const result = await this.interviewService.analyzeResume(
+  //     body.resume,
+  //     body.jobDescription,
+  //   );
+
+  //   return {
+  //     code: 200,
+  //     data: result,
+  //   };
+  // }
+
   @Post('/analyze-resume')
+  @UseGuards(JwtAuthGuard)
   async analyzeResume(
-    @Body() body: { resume: string; jobDescription: string },
+    @Body() body: { position: string; resume: string; jobDescription: string },
+    @Request() req: AuthedRequest,
   ) {
     const result = await this.interviewService.analyzeResume(
+      req.user.userId,
+      body.position,
       body.resume,
       body.jobDescription,
     );
 
-    return {
-      code: 200,
-      data: result,
-    };
+    return result;
+    // return {
+    //   code: 200,
+    //   data: result,
+    // };
+  }
+
+  @Post('/continue-conversation')
+  async continueConversation(
+    @Body() body: { sessionId: string; question: string },
+  ) {
+    const result = await this.interviewService.continueConversation(
+      body.sessionId,
+      body.question,
+    );
+
+    return result;
+    // return {
+    //   code: 200,
+    //   data: {
+    //     response: result,
+    //   },
+    // };
   }
 }
