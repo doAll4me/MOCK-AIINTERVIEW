@@ -136,6 +136,12 @@ export class SessionManager {
     }
   }
 
+  /**
+   *
+   * @param sessionId
+   * @param minMessages
+   * @returns
+   */
   async summarizeLongConversation(
     sessionId: string,
     minMessages: number = 30,
@@ -175,13 +181,13 @@ export class SessionManager {
       });
 
       // 用总结后的内容替换旧的原始消息
-      const summaryContent = summary.content || summary;
+      const summaryText = this.toText(summary);
 
       const newHistory: Message[] = [
         history[0],
         {
           role: 'system',
-          constent: `【之前对话的总结】${summaryContent}`,
+          content: `【之前对话的总结】${summaryText}`,
         },
         ...history.slice(-5), //保留最新的5条原始消息
       ];
@@ -197,5 +203,43 @@ export class SessionManager {
     } catch (error) {
       this.logger.error(`总结对话失败：${error}`);
     }
+  }
+
+  /**
+   * 把 LangChain 输出转成 string 的工具函数
+   * @param output
+   * @returns
+   */
+  private toText(output: unknown): string {
+    if (typeof output === 'string') return output;
+
+    if (output && typeof output === 'object') {
+      const maybe = output as { content?: unknown };
+
+      // content 是 string
+      if (typeof maybe.content === 'string') return maybe.content;
+
+      // content 是数组
+      if (Array.isArray(maybe.content)) {
+        return maybe.content
+          .map((c) => {
+            if (typeof c === 'string') return c;
+
+            if (c && typeof c === 'object') {
+              const record = c as Record<string, unknown>;
+
+              if (typeof record.text === 'string') {
+                return record.text;
+              }
+            }
+
+            return '';
+          })
+          .filter((v): v is string => Boolean(v))
+          .join('\n');
+      }
+    }
+
+    return JSON.stringify(output);
   }
 }

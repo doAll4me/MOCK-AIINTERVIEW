@@ -6,8 +6,10 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import type { AuthedRequest } from 'src/auth/jwt-payload.interface';
+import { ResumeQuizDto } from './dto/resume-quiz.dto';
 import { InterviewService } from './services/interview.service';
 
 @Controller('interview')
@@ -39,7 +41,41 @@ export class InterviewController {
   // 接口1：简历押题
   @Post('resume/quiz/stream')
   @UseGuards(JwtAuthGuard)
-  async resumeQuizStream(@Body() dto, @Request() req, @Res() res) {}
+  resumeQuizStream(
+    @Body() dto: ResumeQuizDto,
+    @Request() req: AuthedRequest,
+    @Res() res: Response,
+  ) {
+    const userId = req.user.userId;
+    // 设置SSE响应头
+    res.setHeader('Content-Type', 'text/event-stream'); //浏览器识别SSE格式
+    res.setHeader('Cache-control', 'no-cache'); //不缓存响应
+    res.setHeader('Connection', 'keep-alive'); //保持TCP连接
+    res.setHeader('X-Accel-Buffering', 'no'); //禁用Nginx缓冲
+    // 订阅进度事件
+    const subscribtion = this.interviewService
+      .generateResumeQuizWithProgress(userId, dto)
+      .subscribe({
+        next: (event) => {
+          // 发送SSE事件
+          res.write(`data:${JSON.stringify(event)}\n\n`);
+        },
+        error: (error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+
+          res.write(
+            `data:${JSON.stringify({ type: 'error', error: message })}\n\n`,
+          );
+          res.end();
+        },
+      });
+
+    // 客戶端断开连接时取消订阅
+    req.on('close', () => {
+      subscribtion.unsubscribe();
+    });
+  }
 
   // 接口2：开始模拟面试
   @Post('mock/start')
@@ -72,6 +108,7 @@ export class InterviewController {
   //   };
   // }
 
+  // 简历分析
   @Post('/analyze-resume')
   @UseGuards(JwtAuthGuard)
   async analyzeResume(
@@ -92,6 +129,7 @@ export class InterviewController {
     // };
   }
 
+  // 继续对话
   @Post('/continue-conversation')
   async continueConversation(
     @Body() body: { sessionId: string; question: string },

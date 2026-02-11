@@ -5,7 +5,7 @@ export type ConsumptionRecordDocument = ConsumptionRecord & Document;
 
 // 消费类型枚举
 export enum ConsumptionType {
-  RESUM_QUIZ = 'resume_quiz', //简历押题
+  RESUME_QUIZ = 'resume_quiz', //简历押题
   SPECIAL_INTERVIEW = 'special_interview', //专项面试
   BEHAVIOR_INTERVIEW = 'behavior_interview', //综合面试
   AI_INTERVIEW = 'ai_interview', //AI模拟面试
@@ -89,7 +89,7 @@ export class ConsumptionRecord {
 
   // =======时间记录=========
   @Prop({ default: Date.now })
-  statedAt: Date; //开始处理的时间
+  startedAt: Date; //开始处理的时间
 
   @Prop()
   completedAt?: Date; //完成时间
@@ -102,7 +102,7 @@ export class ConsumptionRecord {
   errorMessage?: string; //错误信息
 
   @Prop()
-  errotStack?: string; //错误堆栈（开发环境
+  errorStack?: string; //错误堆栈（开发环境
 
   @Prop({ default: false })
   isRefunded: boolean; //是否已退款
