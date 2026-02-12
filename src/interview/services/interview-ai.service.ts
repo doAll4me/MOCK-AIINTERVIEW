@@ -454,4 +454,53 @@ export class InterviewAIService {
         : undefined,
     };
   }
+
+  generateOpeningStatement(
+    interviewName: string,
+    candidateName?: string,
+    positionName?: string,
+  ): string {
+    // 1.生成问候语
+    let greeting = candidateName ? `${candidateName}` : '你';
+    greeting += '好，我是你今天的面试官，你可以叫我';
+    greeting += `${interviewName}老师。\n\n`;
+
+    // 2.添加职位相关信息
+    if (positionName) greeting += `我看到你申请的是${positionName}岗位。\n\n`;
+
+    // 3.生成面试的开始提示
+    greeting +=
+      `让我们开始今天的面试吧。\n\n` +
+      `首先，请你简单介绍一下自己。自我介绍可以说明你的学历以及专业背景、工作经历以及取得的成绩等。`;
+
+    // 4.返回生成的开场白内容
+    return greeting;
+  }
+
+  async *generateOpeningStatementStream(
+    interviewName: string,
+    candidateName?: string,
+    positionName?: string,
+  ): AsyncGenerator<string, string, undefined> {
+    // 第1步：生成完整的开场白：调用generateOpeningStatement方法生成完整的开场白内容
+    const fullGreeting = this.generateOpeningStatement(
+      interviewName,
+      candidateName,
+      positionName,
+    );
+
+    // 第2步：按字符分块，每次返回3-8个字符，模拟打字效果
+    const chunkSize = 5;
+    for (let i = 0; i < fullGreeting.length; i += chunkSize) {
+      // 截取从i到i+chunkSize的字符块
+      const chunk = fullGreeting.slice(i, i + chunkSize);
+      yield chunk;
+
+      // 第3步：添加小延迟，模拟真实打字效果
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+
+    // 第4步：返回完整开场白
+    return fullGreeting;
+  }
 }

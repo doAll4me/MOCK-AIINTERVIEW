@@ -1,5 +1,10 @@
 // 面试业务服务
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 // import { NotFoundException } from '@nestjs/common';
 // import { UserService } from 'src/user/user.service';
@@ -11,11 +16,17 @@ import { v4 as uuidv4 } from 'uuid';
 import { SessionManager } from '../../ai/services/session.manager';
 import {
   MockInterviewEventDto,
+  MockInterviewEventType,
+  MockInterviewType,
   StartMockInterviewDto,
 } from '../dto/mock-interview.dto';
 import { ResumeQuizDto } from '../dto/resume-quiz.dto';
 import { ResumeAnalysisResult } from '../interfaces/resume-analysis-result';
 import { RESUME_ANALYSIS_SYSTEM_MESSAGE } from '../prompts/resume-analysis.prompts';
+import {
+  AIInterviewResult,
+  AIInterviewResultDocument,
+} from '../schemas/ai-interview-result.schema';
 import {
   ConsumptionRecord,
   ConsumptionRecordDocument,
@@ -31,6 +42,7 @@ import { DocumentParserService } from './document-parser.service';
 import { InterviewAIService } from './interview-ai.service';
 import { ResumeAnalysisService } from './resume-analysis.service';
 
+// 简历分析提取结果的输出格式
 type AnalyzeResumeResponse = {
   sessionId: string;
   analysis: ResumeAnalysisResult;
@@ -58,6 +70,51 @@ export interface ProgressEvent {
 }
 
 /**
+ * 模拟面试事件
+ * 描述一次模拟面试过程中的各种事件信息，包括面试的状态、提问进度、错误信息等。
+ */
+export interface MockInterviewEvent {
+  type: MockInterviewEventType; // 事件类型，参考 MockInterviewEventType 枚举，表示当前事件的种类（如提问、错误等）
+  sessionId?: string; // 面试会话的唯一标识符（可选），与 InterviewSession 中的 sessionId 对应
+  interviewerName?: string; // 面试官的姓名（可选）
+  content?: string; // 事件的内容，可能是问题的内容或其他描述信息（可选）
+  questionNumber?: number; // 当前提问的题号（可选）
+  totalQuestions?: number; // 面试的总问题数量（可选）
+  elapsedMinutes?: number; // 已经过的面试时间（单位：分钟， 可选）
+  error?: string; // 错误信息（可选），如果发生错误则返回错误描述
+  resultId?: string; // 结果ID（可选），与面试结果相关联，通常用于保存或查询结果
+  isStreaming?: boolean; // 是否正在进行流式传输（可选），如果正在传输面试内容时为 true
+  metadata?: Record<string, any>; // 额外的元数据（可选），可以用于存储其他额外信息
+}
+
+// 面试会话状态，描述一次面试会话的各项信息，包括候选人、面试官、职位信息、会话历史记录等。
+interface InterviewSession {
+  sessionId: string; // 面试会话的唯一标识符
+  userId: string; // 用户的唯一标识符，通常是候选人的ID
+  interviewType: MockInterviewType; // 面试类型，参考 MockInterviewType 枚举
+  interviewerName: string; // 面试官的姓名
+  candidateName?: string; // 候选人的姓名（可选）
+  company?: string; // 面试公司名称（可选）
+  positionName?: string; // 面试的职位名称（可选）
+  salaryRange?: string; // 该职位的薪资范围（可选）
+  jd?: string; // 职位的招聘描述（可选）
+  resumeContent: string; // 候选人的简历内容
+  conversationHistory: Array<{
+    role: 'interviewer' | 'candidate'; // 发言者角色，区分面试官或候选人
+    content: string; // 发言内容
+    timestamp: Date; // 发言的时间戳
+    standardAnswer?: string; // 面试官问题的标准答案（仅面试官提问时有）
+  }>;
+  questionCount: number; // 面试中问题的数量
+  startTime: Date; // 面试开始的时间
+  targetDuration: number; // 目标时长，单位为分钟，面试预计持续的时间
+  isActive: boolean; // 是否为当前进行中的面试会话
+  // 实时保存相关
+  resultId?: string; // 结果ID，首次保存面试结果时生成
+  consumptionRecordId?: string; // 消费记录ID，记录用户消费信息
+}
+
+/**
  * 面试服务
  *
  * 这个服务处理与面试相关的业务逻辑。
@@ -71,6 +128,7 @@ export interface ProgressEvent {
 export class InterviewService {
   // constructor(private readonly userService: UserService) {} //注入用户服务
   private readonly logger = new Logger(InterviewService.name);
+  private interviewSessions: Map<string, InterviewSession> = new Map();
 
   constructor(
     private configService: ConfigService,
@@ -86,7 +144,13 @@ export class InterviewService {
     private resumeQuizResultModel: Model<ResumeQuizResultDocument>,
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @InjectModel(AIInterviewResult.name)
+    private aiInterviewResultModel: Model<AIInterviewResultDocument>,
   ) {}
+
+  // 面试时长限制
+  private readonly SPECIAL_INTERVIEW_MAX_DURATION = 120;
+  private readonly BEHAVIOR_INTERVIEW_MAX_DURATION = 120;
 
   // async createInterview(userId: number, interviewData: any) {
   //   //验证用户是否存在
@@ -996,6 +1060,256 @@ export class InterviewService {
   }
 
   /**
+   *执行开始模拟面试
+   *该方法用于启动一场模拟面试，包括检查用户的剩余次数、生成面试开场白、创建面试会话、记录消费记录，并实时向前端推送面试进度。它包括以下几个主要步骤:
+   *1.扣除用户模拟面试次数;
+   *2.提取简历内容;
+   *3.创建会话并生成相关记录;
+   *4.流式生成面试开场白，并逐块推送到前端;
+   *5.保存面试开场白到数据库;
+   *6.处理失败时的退款操作。
+
+   * @param userId 用户ID，表示正在进行面试的用户。
+   * @param dto 启动模拟面试的详细数据，包括面试类型、简历ID、职位信息等。
+   * @param progressSubject 用于实时推送面试进度的subject对象，前端通过它接收流式数据。
+   * 
+   * @returns  Promise<void>- 返回一个^Promise`，表示模拟面试的启动过程(包含异步操作)。
+   */
+  private async executeStartMockInterview(
+    userId: string,
+    dto: StartMockInterviewDto,
+    progressSubject: Subject<MockInterviewEventDto>,
+  ): Promise<void> {
+    try {
+      // 1.检查并扣除次数：根据面试类型选择扣费字段
+      const countField =
+        dto.interviewType === MockInterviewType.SPECIAL
+          ? 'specialRemainingCount'
+          : 'behaviorRemainingType';
+
+      // 查找用户并确保剩余次数足够
+      const user = await this.userModel.findOneAndUpdate(
+        {
+          _id: userId,
+          [countField]: { $gt: 0 },
+        },
+        {
+          $inc: { [countField]: -1 },
+        },
+        {
+          new: false,
+        },
+      );
+
+      // 如果用户没有足够的次数，抛出异常
+      if (!user)
+        throw new BadRequestException(
+          `${dto.interviewType === MockInterviewType.SPECIAL ? '专项面试' : '综合面试'}次数不足，请前往充值页面`,
+        );
+
+      this.logger.log(
+        `✅️用户扣费成功，userId=${userId}，type=${dto.interviewType}，扣费前=${user[countField]}，扣费后=${user[countField] - 1}`,
+      );
+
+      // 2.提取简历内容
+      const resumeContent = await this.extractResumeContent(userId, {
+        resumeId: dto.resumeId,
+        resumeContent: dto.resumeContent,
+      } as any);
+
+      // 3.创建会话  为每个面试生成唯一的会话ID
+      const sessionId = uuidv4();
+      const interviewerName = '面试官（喵喵老师）';
+      // 设定面试目标时长
+      const targetDuration =
+        dto.interviewType === MockInterviewType.SPECIAL
+          ? this.SPECIAL_INTERVIEW_MAX_DURATION //120分钟
+          : this.BEHAVIOR_INTERVIEW_MAX_DURATION; //120分钟
+
+      // 根据工资范围生成工资区间
+      const salaryRange =
+        dto.minSalary && dto.maxSalary
+          ? `${dto.minSalary}K-${dto.maxSalary}K`
+          : dto.minSalary
+            ? `${dto.minSalary}K起`
+            : dto.maxSalary
+              ? `${dto.maxSalary}K封顶`
+              : undefined;
+
+      // 创建面试会话对象
+      const session: InterviewSession = {
+        sessionId,
+        userId,
+        interviewType: dto.interviewType,
+        interviewerName,
+        candidateName: dto.candidateName,
+        company: dto.company || '',
+        positionName: dto.positionName,
+        salaryRange,
+        jd: dto.jd,
+        resumeContent,
+        conversationHistory: [],
+        questionCount: 0,
+        startTime: new Date(),
+        targetDuration,
+        isActive: true,
+      };
+
+      // 将会话保存到内存中的会话池
+      this.interviewSessions.set(sessionId, session);
+
+      // 4.创建数据库记录并生成uuid
+      const resultId = uuidv4();
+      const recordId = uuidv4();
+
+      // 为会话分配resultId和消费记录ID
+      session.resultId = resultId;
+      session.consumptionRecordId = recordId;
+
+      // 保存面试结果记录到数据库
+      await this.aiInterviewResultModel.create({
+        resultId,
+        user: new Types.ObjectId(userId),
+        userId,
+        interviewType:
+          dto.interviewType === MockInterviewType.SPECIAL
+            ? 'special'
+            : 'behavior',
+        company: dto.company || '',
+        position: dto.positionName,
+        salaryRange,
+        jobDescription: dto.jd,
+        interviewMode: 'text',
+        qaList: [],
+        totalQuestions: 0,
+        answeredQuestions: 0,
+        status: 'in_progress',
+        consumptionRecordId: recordId,
+        sessionState: session, //保存会话状态
+        metadata: {
+          interviewerName,
+          candidateName: dto.candidateName,
+          sessionId,
+        },
+      });
+
+      // 创建消费记录
+      await this.consumptionRecordModel.create({
+        resultId,
+        recordId,
+        user: new Types.ObjectId(userId),
+        userId,
+        type:
+          dto.interviewType === MockInterviewType.SPECIAL
+            ? ConsumptionType.SPECIAL_INTERVIEW
+            : ConsumptionType.BEHAVIOR_INTERVIEW,
+        status: ConsumptionStatus.SUCCESS,
+        consumedCount: 1,
+        description: `模拟面试 - ${dto.interviewType === MockInterviewType.SPECIAL ? '专项面试' : '综合面试'})`,
+        inputData: {
+          company: dto.company || '',
+          position: dto.positionName,
+          interviewType: dto.interviewType,
+        },
+        outputData: { resultId, sessionId },
+        startedAt: session.startTime,
+      });
+
+      this.logger.log(
+        `✅️面试会话创建成功：sessionId=${sessionId}，resultId=${resultId}，Interviewer=${interviewerName}`,
+      );
+
+      // =====关键部分：流式生成开场白=====
+
+      // 5.流式生成开场白
+      let fullOpeningStatement = '';
+      const openingGenerator = this.aiService.generateOpeningStatementStream(
+        interviewerName,
+        dto.candidateName,
+        dto.positionName,
+      );
+
+      // 逐块推送开场白
+      for await (const chunk of openingGenerator) {
+        fullOpeningStatement += chunk;
+
+        // 发送流式事件
+        progressSubject.next({
+          type: MockInterviewEventType.START,
+          sessionId,
+          resultId,
+          interviewerName,
+          content: fullOpeningStatement,
+          questionNumber: 0,
+          totalQuestions:
+            dto.interviewType === MockInterviewType.SPECIAL ? 12 : 8,
+          elapsedMinutes: 0,
+          isStreaming: true, //标记为流式传输
+        });
+      }
+
+      // 记录开场白时间
+      const openingStatementTime = new Date();
+
+      // 6.记录对话历史
+      session.conversationHistory.push({
+        role: 'interviewer',
+        content: fullOpeningStatement,
+        timestamp: openingStatementTime,
+      });
+
+      // 保存开场白到数据库 qaList
+      await this.aiInterviewResultModel.findOneAndUpdate(
+        { resultId },
+        {
+          $push: {
+            qaList: {
+              question: fullOpeningStatement,
+              answer: '', //开场白没有用户回答
+              answerDuration: 0,
+              answeredAt: openingStatementTime, //记录提问时间
+              askedAt: openingStatementTime,
+            },
+          },
+          $set: { sessionState: session }, //更新会话状态
+        },
+      );
+
+      this.logger.log(`✍️开场白已保存到数据库：resultId=${resultId}`);
+
+      // 7.发送最终开场白事件（标记已完成
+      progressSubject.next({
+        type: MockInterviewEventType.START,
+        sessionId,
+        resultId,
+        interviewerName,
+        content: fullOpeningStatement,
+        questionNumber: 0,
+        totalQuestions:
+          dto.interviewType === MockInterviewType.SPECIAL ? 12 : 8,
+        elapsedMinutes: 0,
+        isStreaming: false, //流式传输已完成
+      });
+
+      // 8.发送等待事件
+      progressSubject.next({
+        type: MockInterviewEventType.WAITING,
+        sessionId,
+      });
+
+      progressSubject.complete();
+    } catch (error) {
+      // 失败时退还次数
+      const countFiled =
+        dto.interviewType === MockInterviewType.SPECIAL
+          ? 'special'
+          : 'behavior';
+      await this.refundCount(userId, countFiled as any);
+      throw error;
+    }
+  }
+
+  /**
    * 开始模拟面试(流式响应)
    * @param userId 用户ID
    * @param dto 请求参数
@@ -1006,10 +1320,28 @@ export class InterviewService {
     dto: StartMockInterviewDto,
   ): Subject<MockInterviewEventDto> {
     const subject = new Subject<MockInterviewEventDto>();
-    // TODO:后续执行逻辑
+
+    // 异步执行
+    this.executeStartMockInterview(userId, dto, subject).catch((error) => {
+      this.logger.error(`模拟面试启动失败：${error.message}`, error.stack);
+      if (subject && !subject.closed) {
+        subject.next({
+          type: MockInterviewEventType.ERROR,
+          error: error,
+        });
+        subject.complete();
+      }
+    });
     return subject;
   }
 
+  /**
+   * 流式处理用户回答
+   * @param userId
+   * @param sessionId
+   * @param answer
+   * @returns
+   */
   anwserMockInterviewWithStream(
     userId: string,
     sessionId: string,
@@ -1017,9 +1349,110 @@ export class InterviewService {
   ): Subject<MockInterviewEventDto> {
     const subject = new Subject<MockInterviewEventDto>();
 
-    // TODO:后续执行逻辑
-
+    // 异步执行
+    this.executeAnswerMockInterview(userId, sessionId, answer, subject).catch(
+      (error) => {
+        this.logger.error(`处理面试回答失败：${error.message}`, error.stack);
+        if (subject && subject.closed) {
+          subject.next({
+            type: MockInterviewEventType.ERROR,
+            error: error,
+          });
+          subject.complete();
+        }
+      },
+    );
     return subject;
+  }
+
+  private async executeAnswerMockInterview(
+    userId: string,
+    sessionId: string,
+    answer: string,
+    progressSubject: Subject<MockInterviewEventDto>,
+  ): Promise<void> {
+    try {
+      // 1.获取会话
+      const session = this.interviewSessions.get(sessionId);
+
+      if (!session) throw new NotFoundException('面试会话不存在或已过期');
+
+      if (session.userId !== userId)
+        throw new BadRequestException('无权访问此面试会话');
+
+      if (!session.isActive) throw new BadRequestException('面试会话已过期');
+
+      // 2.记录候选人回答
+      session.conversationHistory.push({
+        role: 'candidate',
+        content: answer,
+        timestamp: new Date(),
+      });
+
+      session.questionCount++;
+
+      // 3.计算已用时间
+      const elapsedMinutes = Math.floor(
+        (Date.now() - session.startTime.getTime()) / 1000 / 60,
+      );
+
+      this.logger.log(`当前面试用时：${elapsedMinutes}分钟`);
+
+      this.logger.log(
+        `✍️候选人回答：sessionId=${sessionId},questionCount=${session.questionCount},elapsed=${elapsedMinutes}min`,
+      );
+
+      // 3.1检查是否超时
+      const maxDuration =
+        session.interviewType === MockInterviewType.SPECIAL
+          ? this.SPECIAL_INTERVIEW_MAX_DURATION
+          : this.BEHAVIOR_INTERVIEW_MAX_DURATION;
+
+      if (elapsedMinutes >= maxDuration) {
+        this.logger.log(
+          `⏰️面试超时，强制结束：sessionId=${sessionId},elapsed=${elapsedMinutes}min,max=${maxDuration}min`,
+        );
+
+        // 面试结束
+        session.isActive = false;
+
+        // 添加结束语
+        const closingStatement = `感谢您今天的面试表现。由于时间关系(已进行${elapsedMinutes}分钟)我们今天的面试就到这里。您的回答让我们对您有了较为全面的了解，后续我们会进行综合评估，有结果会及时通知您。祝您生活愉快！`;
+
+        session.conversationHistory.push({
+          role: 'interviewer',
+          content: closingStatement,
+          timestamp: new Date(),
+        });
+
+        // 保存面试结果
+        const resultId = await this.saveMockInterviewResult(session);
+
+        // 发送结束事件
+      }
+    } catch (error) {}
+  }
+
+  private async saveMockInterviewResult(
+    session: InterviewSession,
+  ): Promise<string> {
+    try {
+      // 如果已经有resultId（通过实时保存创建），直接返回
+      if (session.resultId)
+        this.logger.log(`✅️使用已有的结果ID：resultId=${session.resultId}`);
+
+      // 更新面试结果和消费记录为完成状态
+      await this.aiInterviewResultModel.findOneAndUpdate(
+        { resultId: session.resultId },
+        {
+          $set: {
+            status: 'complete', //更新为己完成状态
+            completedAt: new Date(), //设置完成时间
+            sessionState: session,
+          },
+        },
+      );
+    } catch (error) {}
   }
 
   /**

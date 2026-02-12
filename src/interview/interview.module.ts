@@ -6,6 +6,10 @@ import { UserModule } from 'src/user/user.module';
 import { User, UserSchema } from 'src/user/user.schema';
 import { InterviewController } from './interview.controller';
 import {
+  AIInterviewResult,
+  AIInterviewResultSchema,
+} from './schemas/ai-interview-result.schema';
+import {
   ConsumptionRecord,
   ConsumptionRecordSchema,
 } from './schemas/consumption-record.schema';
@@ -29,6 +33,7 @@ import { ResumeAnalysisService } from './services/resume-analysis.service';
       // ·ResumeQuizResult -简历押题结果
       { name: ResumeQuizResult.name, schema: ResumeQuizResultSchema },
       // ·AllnterviewResult - 模拟面试结果
+      { name: AIInterviewResult.name, schema: AIInterviewResultSchema },
       // ·User-用户表
       { name: User.name, schema: UserSchema },
       // ·UserTransaction -用户充值记录
