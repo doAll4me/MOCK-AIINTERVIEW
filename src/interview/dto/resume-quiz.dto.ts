@@ -97,4 +97,7 @@ export class ResumeQuizDto {
   @IsString()
   @IsOptional()
   promptVersion?: string;
+
+  @IsString()
+  resumeURL?: string;
 }

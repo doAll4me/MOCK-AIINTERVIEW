@@ -31,7 +31,7 @@ import type { AuthedRequest } from 'src/auth/interface/authed-request.interface'
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { JwtUserPayload } from 'src/auth/jwt-payload.interface';
 import { Public } from 'src/auth/public.decorator';
-import { ResponseUtil } from 'src/common/dto/response.dto';
+import { ResponseUtil } from 'src/common/utils/response.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { User } from './user.schema';
