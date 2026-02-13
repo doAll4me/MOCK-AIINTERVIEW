@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
   Request,
@@ -15,6 +16,7 @@ import {
   AnswerMockInterviewDto,
   StartMockInterviewDto,
 } from './dto/mock-interview.dto';
+import { ResumeQuizDto } from './dto/resume-quiz.dto';
 import { InterviewService } from './services/interview.service';
 
 @Controller('interview')
@@ -43,47 +45,52 @@ export class InterviewController {
   //   );
   // }
 
-  // 接口1：简历押题
-  // @Post('resume/quiz/stream')
-  // @UseGuards(JwtAuthGuard)
-  // resumeQuizStream(
-  //   @Body() dto: ResumeQuizDto,
-  //   @Request() req: AuthedRequest,
-  //   @Res() res: Response,
-  // ) {
-  //   const userId = req.user.userId;
-  //   // 设置SSE响应头
-  //   res.setHeader('Content-Type', 'text/event-stream'); //浏览器识别SSE格式
-  //   res.setHeader('Cache-control', 'no-cache'); //不缓存响应
-  //   res.setHeader('Connection', 'keep-alive'); //保持TCP连接
-  //   res.setHeader('X-Accel-Buffering', 'no'); //禁用Nginx缓冲
-  //   // 订阅进度事件
-  //   const subscribtion = this.interviewService
-  //     .generateResumeQuizWithProgress(userId, dto)
-  //     .subscribe({
-  //       next: (event) => {
-  //         // 发送SSE事件
-  //         res.write(`data:${JSON.stringify(event)}\n\n`);
-  //       },
-  //       error: (error: unknown) => {
-  //         const message =
-  //           error instanceof Error ? error.message : String(error);
+  /**
+   * 接口1：简历押题
+   * @param dto
+   * @param req
+   * @param res
+   */
+  @Post('resume/quiz/stream')
+  @UseGuards(JwtAuthGuard)
+  resumeQuizStream(
+    @Body() dto: ResumeQuizDto,
+    @Request() req: AuthedRequest,
+    @Res() res: Response,
+  ) {
+    const userId = req.user.userId;
+    // 设置SSE响应头
+    res.setHeader('Content-Type', 'text/event-stream'); //浏览器识别SSE格式
+    res.setHeader('Cache-control', 'no-cache'); //不缓存响应
+    res.setHeader('Connection', 'keep-alive'); //保持TCP连接
+    res.setHeader('X-Accel-Buffering', 'no'); //禁用Nginx缓冲
+    // 订阅进度事件
+    const subscribtion = this.interviewService
+      .generateResumeQuizWithProgress(userId, dto)
+      .subscribe({
+        next: (event) => {
+          // 发送SSE事件
+          res.write(`data:${JSON.stringify(event)}\n\n`);
+        },
+        error: (error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
 
-  //         res.write(
-  //           `data:${JSON.stringify({ type: 'error', error: message })}\n\n`,
-  //         );
-  //         res.end();
-  //       },
-  //       complete: () => {
-  //         res.end();
-  //       },
-  //     });
+          res.write(
+            `data:${JSON.stringify({ type: 'error', error: message })}\n\n`,
+          );
+          res.end();
+        },
+        complete: () => {
+          res.end();
+        },
+      });
 
-  //   // 客戶端断开连接时取消订阅
-  //   req.on('close', () => {
-  //     subscribtion.unsubscribe();
-  //   });
-  // }
+    // 客戶端断开连接时取消订阅
+    req.on('close', () => {
+      subscribtion.unsubscribe();
+    });
+  }
 
   /**
    * 接口2：开始模拟面试-SSE流式响应
@@ -93,7 +100,7 @@ export class InterviewController {
    */
   @Post('mock/start')
   @UseGuards(JwtAuthGuard)
-  async startMockInterview(
+  startMockInterview(
     @Body() dto: StartMockInterviewDto,
     @Request() req: AuthedRequest,
     @Res() res: Response,
@@ -120,7 +127,7 @@ export class InterviewController {
       .startMockInterviewWithStream(userId, dto)
       .subscribe({
         next: (event) => {
-          res.write(`data：${JSON.stringify(event)}\n\n`);
+          res.write(`data:${JSON.stringify(event)}\n\n`);
           // flush数据（如果可用
           if (typeof (res as any).flush === 'function') {
             (res as any).flush();
@@ -128,7 +135,7 @@ export class InterviewController {
         },
         error: (error) => {
           res.write(
-            `data：${JSON.stringify({
+            `data:${JSON.stringify({
               type: 'error',
               error: error.message,
             })}\n\n`,
@@ -152,7 +159,7 @@ export class InterviewController {
   // 接口3：回答面试问题-SSE流式响应
   @Post('mock/answer')
   @UseGuards(JwtAuthGuard)
-  async answerMockInterview(
+  answerMockInterview(
     @Body() dto: AnswerMockInterviewDto,
     @Request() req: AuthedRequest,
     @Res() res: Response,
@@ -179,7 +186,7 @@ export class InterviewController {
       .anwserMockInterviewWithStream(userId, dto.sessionId, dto.answer)
       .subscribe({
         next: (event) => {
-          res.write(`data：${JSON.stringify(event)}\n\n`);
+          res.write(`data:${JSON.stringify(event)}\n\n`);
           // flush数据（如果可用
           if (typeof (res as any).flush === 'function') {
             (res as any).flush();
@@ -187,7 +194,7 @@ export class InterviewController {
         },
         error: (error) => {
           res.write(
-            `data：${JSON.stringify({
+            `data:${JSON.stringify({
               type: 'error',
               error: error.message,
             })}\n\n`,
@@ -208,7 +215,7 @@ export class InterviewController {
     });
   }
 
-  // 接口4：结束面试(用户主动结束)
+  // 结束面试(用户主动结束)
   @Post('mock/end/:resultId')
   @UseGuards(JwtAuthGuard)
   async endMockInterview(
@@ -248,6 +255,21 @@ export class InterviewController {
     );
 
     return ResponseUtil.success(result, '面试已恢复，可以继续回答');
+  }
+
+  // 获取分析报告
+  // 统一接口，根据resultId自动识别类型（简历押题、专项面试、综合面试
+  @Get('analysis/report/:resultId')
+  @UseGuards(JwtAuthGuard)
+  async getAnalysisReport(
+    @Param('resultId') resultId: string,
+    @Request() req: AuthedRequest,
+  ) {
+    const report = await this.interviewService.getAnalysisReport(
+      req.user.userId,
+      resultId,
+    );
+    return ResponseUtil.success(report, '查询成功');
   }
 
   // 简历分析test

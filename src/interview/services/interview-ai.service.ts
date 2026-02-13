@@ -200,9 +200,9 @@ export class InterviewAIService {
       if (!Array.isArray(rawResult.questions))
         throw new Error('AI返回的结果中 questions不是数组');
 
-      if (rawResult.questions.length < 3)
+      if (rawResult.questions.length < 5)
         throw new Error(
-          `AI返回的问题数量不足：${rawResult.questions.length}（至少应该3个）`,
+          `AI返回的问题数量不足：${rawResult.questions.length}（至少应该5个）`,
         );
 
       const duration = Date.now() - startTime;
@@ -315,7 +315,16 @@ export class InterviewAIService {
     }>;
     elapsedMinutes: number;
     targetDuration: number;
-  }): AsyncGenerator<string> {
+  }): AsyncGenerator<
+    string,
+    {
+      question: string;
+      shouldEnd: boolean;
+      standardAnswer?: string;
+      reasoning?: string;
+    },
+    undefined
+  > {
     try {
       // 第1步：构建动态prompt
       // 调用外部函数buildMockInterviewPrompt，生成面试问题所需的提示内容
@@ -455,6 +464,7 @@ export class InterviewAIService {
     };
   }
 
+  // 生成开场白
   generateOpeningStatement(
     interviewName: string,
     candidateName?: string,
@@ -475,6 +485,21 @@ export class InterviewAIService {
 
     // 4.返回生成的开场白内容
     return greeting;
+  }
+
+  // 生成结束语
+  generateClosingStatement(
+    interviewerName: string,
+    candidateName?: string,
+  ): string {
+    const name = candidateName || '候选人';
+    return (
+      `好的${name},今天的面试就到这里。\n\n` +
+      `感谢你的时间和精彩的回答。整体来看，你的表现不错。\n\n` +
+      `我们会将你的面试情况反馈给用人部门，预计3-5个工作日内会给你答复。\n\n` +
+      `如果有任何问题，可以随时联系HR。祝你一切顺利！\n\n` +
+      `-${interviewerName}老师`
+    );
   }
 
   async *generateOpeningStatementStream(
